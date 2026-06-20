@@ -1,0 +1,1219 @@
+openapi: 3.0.3
+info:
+  title: Orderly Hub API — Sprint 2
+  description: |
+    REST API for the **Orderly Hub** restaurant management system.
+
+    ## Authentication
+    All protected endpoints require a Flask-Security auth token obtained from
+    `POST /api/login`. Include it in every subsequent request as:
+    ```
+    Authentication-Token: <token>
+    ```
+
+    ## Role Mapping
+    | Frontend Label | Backend Role |
+    |---------------|--------------|
+    | Admin / Owner  | `owner`      |
+    | Waiter         | `server`     |
+    | Customer       | `customer`   |
+
+    ## What's New in Sprint 2
+    - `POST /api/suggestions` — AI-powered menu recommendations using TF-IDF + cosine similarity
+    - `GET /api/users` — list users by role for Admin Staff/Customer pages
+    - Auto-seeded demo menu and default owner account on first startup
+    - Bug fixes: role names corrected (`owner` instead of non-existent `admin`),
+      customer access added to tables endpoint, `@auth_required` added to feedback POST
+
+  version: 2.0.0
+  contact:
+    name: Orderly Hub Team
+
+servers:
+  - url: http://localhost:5000
+    description: Local Flask development server
+
+# ── Security Scheme ─────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: Authentication-Token
+      description: Token returned by POST /api/login
+
+  # ── Reusable Schemas ───────────────────────────────────────────────────────
+  schemas:
+
+    # Auth
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: owner@gmail.com
+        password:
+          type: string
+          format: password
+          example: "1234"
+
+    LoginResponse:
+      type: object
+      properties:
+        message:    { type: string, example: "Logged in successfully" }
+        id:         { type: integer, example: 1 }
+        email:      { type: string, example: "owner@gmail.com" }
+        role:       { type: string, enum: [owner, server, customer], example: owner }
+        auth-token: { type: string, example: "WyIxIiwiZmZl..." }
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:     { type: string, example: "Pranav Pandey" }
+        email:    { type: string, format: email, example: "pranav@lumiere.com" }
+        password: { type: string, format: password, example: "mypassword" }
+        role:     { type: string, enum: [owner, server, customer], example: customer }
+
+    UserInfo:
+      type: object
+      properties:
+        name:  { type: string, example: "Pranav Pandey" }
+        email: { type: string, example: "pranav@lumiere.com" }
+        role:  { type: string, enum: [owner, server, customer] }
+
+    UserListItem:
+      type: object
+      properties:
+        id:     { type: integer }
+        name:   { type: string }
+        email:  { type: string }
+        roles:  { type: array, items: { type: string } }
+        active: { type: boolean }
+
+    # Tables
+    Table:
+      type: object
+      properties:
+        id:       { type: integer, example: 1 }
+        capacity: { type: integer, example: 4 }
+        status:
+          type: string
+          enum: [available, occupied, reserved]
+          example: available
+
+    TableRequest:
+      type: object
+      properties:
+        capacity: { type: integer, example: 4 }
+        status:   { type: string, enum: [available, occupied, reserved], example: available }
+
+    # Categories
+    Category:
+      type: object
+      properties:
+        id:   { type: integer, example: 1 }
+        name: { type: string, example: Starters }
+
+    CategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, example: Starters }
+
+    # Menu
+    MenuItem:
+      type: object
+      properties:
+        id:          { type: integer, example: 1 }
+        name:        { type: string, example: "Paneer Tikka" }
+        description: { type: string, example: "Grilled cottage cheese" }
+        price:       { type: number, format: float, example: 320.0 }
+        category_id: { type: integer, example: 1 }
+        available:   { type: boolean, example: true }
+
+    MenuItemRequest:
+      type: object
+      required: [name, price, category_id]
+      properties:
+        name:         { type: string, example: "Paneer Tikka" }
+        description:  { type: string, example: "Grilled cottage cheese" }
+        price:        { type: number, format: float, example: 320.0 }
+        category_id:  { type: integer, example: 1 }
+        is_available: { type: boolean, example: true }
+
+    # Orders
+    Order:
+      type: object
+      properties:
+        id:       { type: integer, example: 1 }
+        table_id: { type: integer, example: 3 }
+        status:
+          type: string
+          enum: [pending, preparing, served, completed]
+          example: pending
+        total:    { type: number, format: float, example: 840.0 }
+
+    OrderRequest:
+      type: object
+      required: [table_id]
+      properties:
+        table_id: { type: integer, example: 3 }
+
+    OrderItem:
+      type: object
+      properties:
+        id:           { type: integer }
+        menu_item_id: { type: integer }
+        quantity:     { type: integer }
+        price:        { type: number, format: float }
+
+    OrderItemRequest:
+      type: object
+      required: [order_id, menu_item_id, quantity]
+      properties:
+        order_id:     { type: integer, example: 1 }
+        menu_item_id: { type: integer, example: 5 }
+        quantity:     { type: integer, example: 2 }
+
+    # Feedback
+    FeedbackItem:
+      type: object
+      properties:
+        rating:  { type: integer, minimum: 1, maximum: 5, example: 4 }
+        comment: { type: string, example: "Great food!" }
+
+    FeedbackRequest:
+      type: object
+      required: [user_id, rating]
+      properties:
+        user_id:      { type: integer, example: 2 }
+        menu_item_id: { type: integer, nullable: true, example: 5 }
+        rating:       { type: integer, minimum: 1, maximum: 5, example: 4 }
+        comment:      { type: string, example: "Great food!" }
+
+    # Suggestions (NEW Sprint 2)
+    SuggestionRequest:
+      type: object
+      required: [itemId]
+      properties:
+        itemId: { type: integer, example: 3 }
+
+    SuggestionResponse:
+      type: object
+      properties:
+        itemId:       { type: integer, example: 3 }
+        selectedItem: { type: string, example: "Paneer Tikka" }
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:    { type: integer }
+              name:  { type: string }
+              price: { type: number, format: float }
+
+    # Common
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string, example: "Operation successful" }
+
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string, example: "Something went wrong" }
+        error:   { type: string, example: "Item not found" }
+
+# Default security for all endpoints (overridden where {} is shown)
+security:
+  - TokenAuth: []
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Auth ───────────────────────────────────────────────────────────────────
+
+  /api/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        **User Story:** As a new user, I want to create an account so I can
+        access the restaurant management system.
+
+        Creates a new user with the specified role. Roles are:
+        - `owner` — full administrative access
+        - `server` — waiter/service staff access
+        - `customer` — menu browsing and order placement
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: |
+            Bad request — one of:
+            - Email already registered (`"User already exists!"`)
+            - Missing required fields (`"All fields are required!"`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: Log in and obtain an auth token
+      description: |
+        **User Story:** As a registered user, I want to log in and receive
+        an authentication token to access protected resources.
+
+        Returns an `auth-token` that must be sent in the `Authentication-Token`
+        header for all subsequent protected requests.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Login successful — returns auth token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400':
+          description: Invalid password
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Email not found in the system
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/logout:
+    post:
+      tags: [Auth]
+      summary: Log out the current user
+      description: |
+        **User Story:** As a logged-in user, I want to securely log out
+        and invalidate my session.
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token provided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/user:
+    get:
+      tags: [Auth]
+      summary: Get the current authenticated user's profile
+      description: |
+        **User Story:** As a logged-in user, I want to fetch my own profile
+        so the UI can display my name and role.
+
+        Requires role: `owner`, `server`, or `customer`.
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserInfo' }
+        '401':
+          description: No valid token provided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Token valid but role not permitted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/users:
+    get:
+      tags: [Auth]
+      summary: List all users, optionally filtered by role
+      description: |
+        **User Story:** As an owner, I want to see a list of all registered
+        customers and staff so I can manage the team and view customer history.
+
+        Requires role: `owner`.
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [owner, server, customer]
+          description: Filter by backend role name
+          example: customer
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/UserListItem' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Tables ─────────────────────────────────────────────────────────────────
+
+  /api/tables:
+    get:
+      tags: [Tables]
+      summary: List all tables
+      description: |
+        **User Story:** As an owner, waiter, or customer, I want to see all
+        restaurant tables and their current status (available / occupied / reserved).
+
+        Requires role: `owner`, `server`, or `customer`.
+      responses:
+        '200':
+          description: List of tables
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tables:
+                    type: array
+                    items: { $ref: '#/components/schemas/Table' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: No tables found in the system
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    post:
+      tags: [Tables]
+      summary: Create a new table
+      description: |
+        **User Story:** As an owner, I want to add restaurant tables so
+        waiters and customers can be assigned to them.
+
+        Requires role: `owner`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TableRequest' }
+      responses:
+        '201':
+          description: Table created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:  { type: string }
+                  table_id: { type: integer }
+        '400':
+          description: Error creating table (e.g. invalid capacity)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/tables/{table_id}:
+    parameters:
+      - in: path
+        name: table_id
+        required: true
+        schema: { type: integer }
+        description: Unique table identifier
+
+    get:
+      tags: [Tables]
+      summary: Get a specific table by ID
+      description: |
+        **User Story:** As staff, I want to look up a specific table's details.
+
+        Requires role: `owner` or `server`.
+      responses:
+        '200':
+          description: Table details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Table' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Table not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    put:
+      tags: [Tables]
+      summary: Update a table's capacity or status
+      description: |
+        **User Story:** As an owner or waiter, I want to update a table's
+        status (e.g. mark it occupied when a customer sits down).
+
+        Requires role: `owner`, `server`, or `customer`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TableRequest' }
+      responses:
+        '200':
+          description: Table updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Error updating table
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Table not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    delete:
+      tags: [Tables]
+      summary: Delete a table
+      description: |
+        **User Story:** As an owner, I want to permanently remove a table
+        from the system when it is decommissioned.
+
+        Requires role: `owner`.
+      responses:
+        '200':
+          description: Table deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Error deleting table
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Table not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Categories ─────────────────────────────────────────────────────────────
+
+  /api/categories:
+    get:
+      tags: [Menu]
+      summary: List all menu categories
+      description: |
+        **User Story:** As any authenticated user, I want to see the list
+        of menu categories so I can filter the menu by type.
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    post:
+      tags: [Menu]
+      summary: Create a new menu category
+      description: |
+        **User Story:** As an owner, I want to create categories (e.g. Starters,
+        Mains, Desserts) so menu items can be organised for customers to browse.
+
+        Requires role: `owner`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryRequest' }
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  id:      { type: integer }
+        '400':
+          description: Error creating category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/categories/{category_id}:
+    parameters:
+      - in: path
+        name: category_id
+        required: true
+        schema: { type: integer }
+
+    get:
+      tags: [Menu]
+      summary: Get a specific category
+      description: |
+        **User Story:** Retrieve the name and ID of a specific category.
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    put:
+      tags: [Menu]
+      summary: Rename a category
+      description: |
+        **User Story:** As an owner, I want to rename categories to better
+        reflect the menu structure.
+
+        Requires role: `owner`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryRequest' }
+      responses:
+        '200':
+          description: Category renamed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    delete:
+      tags: [Menu]
+      summary: Delete a category
+      description: |
+        **User Story:** As an owner, I want to delete outdated categories.
+
+        Requires role: `owner`.
+      responses:
+        '200':
+          description: Category deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Menu Items ─────────────────────────────────────────────────────────────
+
+  /api/menu:
+    get:
+      tags: [Menu]
+      summary: List all menu items
+      description: |
+        **User Story:** As a customer, waiter, or owner, I want to browse
+        all available dishes with their names, prices, and availability.
+      responses:
+        '200':
+          description: Full menu list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  menu:
+                    type: array
+                    items: { $ref: '#/components/schemas/MenuItem' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    post:
+      tags: [Menu]
+      summary: Add a new menu item
+      description: |
+        **User Story:** As an owner, I want to add new dishes to the menu
+        with a name, description, price, and category.
+
+        Requires role: `owner`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MenuItemRequest' }
+      responses:
+        '201':
+          description: Menu item created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  id:      { type: integer }
+        '400':
+          description: Error creating menu item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/menu/{menu_item_id}:
+    parameters:
+      - in: path
+        name: menu_item_id
+        required: true
+        schema: { type: integer }
+
+    get:
+      tags: [Menu]
+      summary: Get a specific menu item
+      description: |
+        **User Story:** Retrieve the details of a specific dish.
+      responses:
+        '200':
+          description: Menu item details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MenuItem' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Menu item not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    put:
+      tags: [Menu]
+      summary: Update a menu item
+      description: |
+        **User Story:** As an owner, I want to update the price, description,
+        or availability of an existing dish.
+
+        Requires role: `owner`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MenuItemRequest' }
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Menu item not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    delete:
+      tags: [Menu]
+      summary: Remove a menu item
+      description: |
+        **User Story:** As an owner, I want to remove discontinued dishes
+        from the menu so customers don't see items that aren't served.
+
+        Requires role: `owner`.
+      responses:
+        '200':
+          description: Item deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Menu item not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Orders ─────────────────────────────────────────────────────────────────
+
+  /api/orders:
+    get:
+      tags: [Orders]
+      summary: List all orders
+      description: |
+        **User Story:** As an owner or waiter, I want to see all orders so
+        I can track what is pending, being prepared, and completed.
+      responses:
+        '200':
+          description: All orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items: { $ref: '#/components/schemas/Order' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    post:
+      tags: [Orders]
+      summary: Create a new order
+      description: |
+        **User Story:** As a customer, I want to place an order at my table.
+        As a waiter, I want to create an order on behalf of a customer.
+
+        Any authenticated user can create an order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderRequest' }
+      responses:
+        '201':
+          description: Order created with status `pending`
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:  { type: string }
+                  order_id: { type: integer }
+        '400':
+          description: Error creating order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/orders/{order_id}:
+    parameters:
+      - in: path
+        name: order_id
+        required: true
+        schema: { type: integer }
+
+    get:
+      tags: [Orders]
+      summary: Get a specific order
+      description: |
+        **User Story:** As a customer, I want to check the status and total
+        of my order. As an owner, I want to view order details for billing.
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    put:
+      tags: [Orders]
+      summary: Mark an order as completed
+      description: |
+        **User Story:** As an owner or waiter, I want to close an order after
+        the customer has paid so it moves out of the active queue.
+
+        Requires role: `owner` or `server`.
+      responses:
+        '200':
+          description: Order marked as completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an owner or server
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Order Items ─────────────────────────────────────────────────────────────
+
+  /api/order_items:
+    post:
+      tags: [Orders]
+      summary: Add a dish to an existing order
+      description: |
+        **User Story:** As a customer or waiter, I want to add menu items
+        to an order. The item price is automatically read from the menu and
+        the order total is updated immediately.
+
+        Any authenticated user can add items to an order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderItemRequest' }
+      responses:
+        '201':
+          description: Item added and order total updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Error adding item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Menu item not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/order_items/{order_id}:
+    parameters:
+      - in: path
+        name: order_id
+        required: true
+        schema: { type: integer }
+        description: The order whose items to retrieve
+
+    get:
+      tags: [Orders]
+      summary: Get all items in an order
+      description: |
+        **User Story:** As a waiter or owner, I want to see all the dishes
+        in a specific order so I can verify before serving or billing.
+      responses:
+        '200':
+          description: List of order items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/OrderItem' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/order_items/{item_id}:
+    parameters:
+      - in: path
+        name: item_id
+        required: true
+        schema: { type: integer }
+        description: The order item to delete
+
+    delete:
+      tags: [Orders]
+      summary: Remove an item from an order
+      description: |
+        **User Story:** As a waiter, I want to remove a mistakenly added
+        item from an order before it is sent to the kitchen.
+      responses:
+        '200':
+          description: Item removed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Order item not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Feedback ───────────────────────────────────────────────────────────────
+
+  /api/feedback:
+    get:
+      tags: [Feedback]
+      summary: List all customer feedback
+      description: |
+        **User Story:** As an owner, I want to read all customer reviews and
+        ratings so I can identify areas for improvement.
+      responses:
+        '200':
+          description: All feedback entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feedback:
+                    type: array
+                    items: { $ref: '#/components/schemas/FeedbackItem' }
+        '401':
+          description: No valid token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+    post:
+      tags: [Feedback]
+      summary: Submit customer feedback
+      description: |
+        **User Story:** As a customer, I want to rate my dining experience
+        and optionally review a specific dish so the restaurant can improve.
+
+        Authentication is required to prevent anonymous spam submissions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeedbackRequest' }
+      responses:
+        '201':
+          description: Feedback submitted successfully
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageResponse' }
+        '400':
+          description: Error saving feedback
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: No valid token — authentication required to prevent spam
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── Suggestions (NEW — Sprint 2) ───────────────────────────────────────────
+
+  /api/suggestions:
+    post:
+      tags: [Suggestions]
+      summary: Get AI-powered menu item recommendations
+      description: |
+        **User Story:** As a customer, I want to see similar dishes recommended
+        when I view or add a menu item to my cart, so I can discover new dishes
+        and increase my order variety.
+
+        Uses **TF-IDF (Term Frequency-Inverse Document Frequency)** vectorisation
+        of item names, descriptions, and categories, combined with **cosine
+        similarity** to find the most semantically similar items to the selected one.
+
+        Returns up to 3 recommended items ranked by similarity score.
+        The selected item itself is never included in the results.
+
+        **No authentication required** — suggestions are accessible to all
+        users (including unauthenticated browsing sessions in future).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SuggestionRequest' }
+            example:
+              itemId: 3
+      responses:
+        '200':
+          description: |
+            Suggestions returned successfully. The `suggestions` array contains
+            up to 3 items ranked by cosine similarity (most similar first).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuggestionResponse' }
+              example:
+                itemId: 3
+                selectedItem: "Paneer Tikka"
+                suggestions:
+                  - id: 1
+                    name: "Chicken Tikka"
+                    price: 200.0
+                  - id: 2
+                    name: "Veg Spring Roll"
+                    price: 180.0
+        '400':
+          description: |
+            Bad request — `itemId` field is missing from the request body.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: "itemId is required" }
+        '404':
+          description: Menu item with the given `itemId` does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string, example: "Item not found" }

@@ -1,0 +1,116 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;\red246\green246\blue244;\red33\green33\blue31;}
+{\*\expandedcolortbl;;\cssrgb\c97255\c97255\c96471;\cssrgb\c17255\c17255\c16471;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf2 \cb3 \expnd0\expndtw0\kerning0
+(venv) pranavpandey@Pranavs-MacBook-Air orderly-hub-with-ai-and-fixes % python3 -m pytest tests/test_api.py -v\
+=================================================================== test session starts ===================================================================\
+platform darwin -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0 -- /Users/pranavpandey/Downloads/orderly-hub/venv/bin/python3\
+cachedir: .pytest_cache\
+rootdir: /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes\
+collected 37 items                                                                                                                                        \
+\
+tests/test_api.py::TestAuth::test_TC01_register_success PASSED                                                                                      [  2%]\
+tests/test_api.py::TestAuth::test_TC02_register_duplicate_email PASSED                                                                              [  5%]\
+tests/test_api.py::TestAuth::test_TC03_register_missing_fields PASSED                                                                               [  8%]\
+tests/test_api.py::TestAuth::test_TC04_login_valid PASSED                                                                                           [ 10%]\
+tests/test_api.py::TestAuth::test_TC05_login_wrong_password PASSED                                                                                  [ 13%]\
+tests/test_api.py::TestAuth::test_TC06_login_unknown_email PASSED                                                                                   [ 16%]\
+tests/test_api.py::TestAuth::test_TC07_get_current_user PASSED                                                                                      [ 18%]\
+tests/test_api.py::TestAuth::test_TC08_get_user_no_token PASSED                                                                                     [ 21%]\
+tests/test_api.py::TestTables::test_TC09_owner_creates_table PASSED                                                                                 [ 24%]\
+tests/test_api.py::TestTables::test_TC10_server_cannot_create_table PASSED                                                                          [ 27%]\
+tests/test_api.py::TestTables::test_TC11_list_tables_owner PASSED                                                                                   [ 29%]\
+tests/test_api.py::TestTables::test_TC12_list_tables_customer PASSED                                                                                [ 32%]\
+tests/test_api.py::TestTables::test_TC13_update_table_status PASSED                                                                                 [ 35%]\
+tests/test_api.py::TestTables::test_TC14_delete_table PASSED                                                                                        [ 37%]\
+tests/test_api.py::TestTables::test_TC15_get_nonexistent_table PASSED                                                                               [ 40%]\
+tests/test_api.py::TestMenu::test_TC16_owner_creates_category PASSED                                                                                [ 43%]\
+tests/test_api.py::TestMenu::test_TC17_customer_cannot_create_category PASSED                                                                       [ 45%]\
+tests/test_api.py::TestMenu::test_TC18_list_categories PASSED                                                                                       [ 48%]\
+tests/test_api.py::TestMenu::test_TC19_owner_creates_menu_item PASSED                                                                               [ 51%]\
+tests/test_api.py::TestMenu::test_TC20_customer_cannot_create_menu_item PASSED                                                                      [ 54%]\
+tests/test_api.py::TestMenu::test_TC21_list_menu PASSED                                                                                             [ 56%]\
+tests/test_api.py::TestMenu::test_TC22_update_menu_item PASSED                                                                                      [ 59%]\
+tests/test_api.py::TestMenu::test_TC23_delete_menu_item PASSED                                                                                      [ 62%]\
+tests/test_api.py::TestOrders::test_TC24_customer_creates_order PASSED                                                                              [ 64%]\
+tests/test_api.py::TestOrders::test_TC25_list_orders PASSED                                                                                         [ 67%]\
+tests/test_api.py::TestOrders::test_TC26_add_item_updates_total PASSED                                                                              [ 70%]\
+tests/test_api.py::TestOrders::test_TC27_get_order_items PASSED                                                                                     [ 72%]\
+tests/test_api.py::TestOrders::test_TC28_owner_completes_order PASSED                                                                               [ 75%]\
+tests/test_api.py::TestOrders::test_TC29_customer_cannot_complete_order PASSED                                                                      [ 78%]\
+tests/test_api.py::TestOrders::test_TC30_order_not_found PASSED                                                                                     [ 81%]\
+tests/test_api.py::TestFeedback::test_TC31_submit_feedback PASSED                                                                                   [ 83%]\
+tests/test_api.py::TestFeedback::test_TC32_list_feedback PASSED                                                                                     [ 86%]\
+tests/test_api.py::TestFeedback::test_TC33_feedback_requires_auth PASSED                                                                            [ 89%]\
+tests/test_api.py::TestSuggestions::test_TC34_suggestions_valid_item PASSED                                                                         [ 91%]\
+tests/test_api.py::TestSuggestions::test_TC35_suggestions_invalid_item PASSED                                                                       [ 94%]\
+tests/test_api.py::TestSuggestions::test_TC36_suggestions_missing_item_id PASSED                                                                    [ 97%]\
+tests/test_api.py::TestSuggestions::test_TC37_suggestions_returns_different_items PASSED                                                            [100%]\
+\
+==================================================================== warnings summary =====================================================================\
+tests/test_api.py::TestTables::test_TC13_update_table_status\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/table_api.py:72: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    table = Table.query.get(table_id)\
+\
+tests/test_api.py::TestTables::test_TC14_delete_table\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/table_api.py:98: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    table = Table.query.get(table_id)\
+\
+tests/test_api.py::TestTables::test_TC15_get_nonexistent_table\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/table_api.py:18: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    table = Table.query.get(table_id)\
+\
+tests/test_api.py::TestMenu::test_TC22_update_menu_item\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/menu_api.py:144: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    item = MenuItem.query.get(menu_item_id)\
+\
+tests/test_api.py::TestMenu::test_TC23_delete_menu_item\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/menu_api.py:165: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    item = MenuItem.query.get(menu_item_id)\
+\
+tests/test_api.py::TestOrders::test_TC24_customer_creates_order\
+tests/test_api.py::TestOrders::test_TC26_add_item_updates_total\
+tests/test_api.py::TestOrders::test_TC27_get_order_items\
+tests/test_api.py::TestOrders::test_TC28_owner_completes_order\
+tests/test_api.py::TestOrders::test_TC29_customer_cannot_complete_order\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/order_api.py:47: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).\
+    created_at=datetime.utcnow()\
+\
+tests/test_api.py::TestOrders::test_TC26_add_item_updates_total\
+tests/test_api.py::TestOrders::test_TC27_get_order_items\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/order_api.py:84: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    menu_item = MenuItem.query.get(args['menu_item_id'])\
+\
+tests/test_api.py::TestOrders::test_TC26_add_item_updates_total\
+tests/test_api.py::TestOrders::test_TC27_get_order_items\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/order_api.py:97: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    order = Order.query.get(args['order_id'])\
+\
+tests/test_api.py::TestOrders::test_TC26_add_item_updates_total\
+tests/test_api.py::TestOrders::test_TC28_owner_completes_order\
+tests/test_api.py::TestOrders::test_TC30_order_not_found\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/order_api.py:22: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    order = Order.query.get(order_id)\
+\
+tests/test_api.py::TestOrders::test_TC28_owner_completes_order\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/order_api.py:59: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    order = Order.query.get(order_id)\
+\
+tests/test_api.py::TestFeedback::test_TC31_submit_feedback\
+tests/test_api.py::TestFeedback::test_TC33_feedback_requires_auth\
+  /Users/pranavpandey/Downloads/orderly-hub/venv/lib/python3.14/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).\
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore\
+\
+tests/test_api.py::TestSuggestions::test_TC34_suggestions_valid_item\
+tests/test_api.py::TestSuggestions::test_TC35_suggestions_invalid_item\
+tests/test_api.py::TestSuggestions::test_TC37_suggestions_returns_different_items\
+  /Users/pranavpandey/Downloads/orderly-hub-with-ai-and-fixes/backend/resources/suggestion_api.py:17: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)\
+    selected_item = MenuItem.query.get(item_id)\
+\
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\
+============================================================= 37 passed, 23 warnings in 6.84s =============================================================}
